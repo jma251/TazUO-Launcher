@@ -106,6 +106,10 @@ jobs:
           echo "--- issue body ---"
           cat issue-body.md
 
+      # Every gh call names the repository explicitly. gh otherwise picks its target
+      # from the git remotes, and this job adds an "upstream" remote for the
+      # comparison - which is how it ended up trying to file issues on Taz's repo,
+      # failing daily because issues are disabled there.
       - name: Open or update the review issue
         if: steps.compare.outputs.count != '0'
         shell: bash
@@ -114,16 +118,16 @@ jobs:
         run: |
           set -euo pipefail
 
-          EXISTING=$(gh issue list --state open --search "\"${ISSUE_TITLE}\" in:title" \
+          EXISTING=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"${ISSUE_TITLE}\" in:title" \
                        --json number,title \
                        --jq "[.[] | select(.title == \"${ISSUE_TITLE}\")] | .[0].number // empty")
 
           if [ -n "$EXISTING" ]; then
             echo "Updating issue #${EXISTING}."
-            gh issue edit "$EXISTING" --body-file issue-body.md
+            gh issue edit "$EXISTING" --repo "$GITHUB_REPOSITORY" --body-file issue-body.md
           else
             echo "Opening a new issue."
-            gh issue create --title "${ISSUE_TITLE}" --body-file issue-body.md
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "${ISSUE_TITLE}" --body-file issue-body.md
           fi
 
       # Once the commits are merged there is nothing to review, so do not leave a
@@ -136,12 +140,12 @@ jobs:
         run: |
           set -euo pipefail
 
-          EXISTING=$(gh issue list --state open --search "\"${ISSUE_TITLE}\" in:title" \
+          EXISTING=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"${ISSUE_TITLE}\" in:title" \
                        --json number,title \
                        --jq "[.[] | select(.title == \"${ISSUE_TITLE}\")] | .[0].number // empty")
 
           if [ -n "$EXISTING" ]; then
-            gh issue close "$EXISTING" --comment "Upstream is fully merged into \`main\`. Closing."
+            gh issue close "$EXISTING" --repo "$GITHUB_REPOSITORY" --comment "Upstream is fully merged into \`main\`. Closing."
           else
             echo "Nothing outstanding, no issue open."
           fi
